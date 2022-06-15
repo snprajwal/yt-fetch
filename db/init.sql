@@ -11,3 +11,5 @@ CREATE TABLE video (
 	thumbnail VARCHAR,
 	published_at TIMESTAMP
 );
+
+CREATE INDEX published_at_idx ON video (published_at DESC);

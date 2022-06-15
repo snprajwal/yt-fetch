@@ -20,9 +20,20 @@ var (
 	DB_NAME     = os.Getenv("DB_NAME")
 )
 
+const (
+	GET_VIDEOS_UNPAGED = "SELECT * FROM video ORDER BY published_at DESC LIMIT $1"
+	GET_VIDEOS_PAGED   = "SELECT * FROM video WHERE id < $1 ORDER BY published_at DESC LIMIT $2"
+
+	INSERT_VIDEO = `INSERT INTO video
+		(slug, title, channel, description, thumbnail, published_at)
+		VALUES ($1, $2, $3, $4, $5, $6)`
+	SEARCH_VIDEO = `SELECT * FROM video WHERE LOWER(title) LIKE '%' || $1 || '%'
+	OR LOWER(description) LIKE '%' || $2 || '%' ORDER BY published_at DESC LIMIT $3`
+)
+
 func initDb() error {
 	dbUrl := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname= %s sslmode=disable",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME,
 	)
 	var err error
@@ -35,8 +46,9 @@ func insertVideo(res *youtube.SearchResult) error {
 	if err != nil {
 		return err
 	}
+
 	_, err = ytFetchDb.Exec(
-		`INSERT INTO video VALUES ($1, $2, $3, $4, $5, $6)`,
+		INSERT_VIDEO,
 		res.Id.VideoId,
 		res.Snippet.Title,
 		res.Snippet.ChannelTitle,
@@ -48,4 +60,50 @@ func insertVideo(res *youtube.SearchResult) error {
 		return err
 	}
 	return nil
+}
+
+func getVideos(pageKey int) ([]*ytVideo, error) {
+	var rows *sql.Rows
+	var err error
+	if pageKey == 0 {
+		rows, err = ytFetchDb.Query(GET_VIDEOS_UNPAGED, PAGE_SIZE)
+	} else {
+		rows, err = ytFetchDb.Query(GET_VIDEOS_PAGED, pageKey, PAGE_SIZE)
+	}
+	if err != nil {
+		return nil, err
+	}
+	videos := []*ytVideo{}
+
+	defer rows.Close()
+	for rows.Next() {
+		video := ytVideo{}
+		err = rows.Scan(&video.id, &video.Slug, &video.Title, &video.Channel, &video.Description, &video.Thumbnail, &video.PublishedAt)
+		if err != nil {
+			return nil, err
+		}
+		videos = append(videos, &video)
+	}
+
+	return videos, nil
+}
+
+func searchVideos(query string, pageKey int) ([]*ytVideo, error) {
+	rows, err := ytFetchDb.Query(SEARCH_VIDEO, query, query, PAGE_SIZE)
+	if err != nil {
+		return nil, err
+	}
+	videos := []*ytVideo{}
+
+	defer rows.Close()
+	for rows.Next() {
+		video := ytVideo{}
+		err = rows.Scan(&video.id, &video.Slug, &video.Title, &video.Channel, &video.Description, &video.Thumbnail, &video.PublishedAt)
+		if err != nil {
+			return nil, err
+		}
+		videos = append(videos, &video)
+	}
+
+	return videos, nil
 }

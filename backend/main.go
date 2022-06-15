@@ -16,6 +16,9 @@ func main() {
 	if err := initDb(); err != nil {
 		log.Fatal("[DB ERROR] ", err)
 	}
+	log.Println("[DB] Connection successful")
+
+	// Start goroutine to fetch videos
 	go fetchLatestVideos(QUERY)
 
 	log.Println("Server running on port ", PORT)
@@ -27,5 +30,6 @@ func newRouter() *mux.Router {
 	r.HandleFunc("/ping", pingHandler).Methods(http.MethodGet)
 	r.HandleFunc("/", listHandler).Methods(http.MethodGet)
 	r.HandleFunc("/search", searchHandler).Methods(http.MethodGet)
+	r.Use(pagination)
 	return r
 }
