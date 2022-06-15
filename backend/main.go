@@ -18,6 +18,10 @@ func main() {
 	}
 	log.Println("[DB] Connection successful")
 
+	if err := initHasher(); err != nil {
+		log.Fatal("[HASH ERROR] ", err)
+	}
+
 	// Start goroutine to fetch videos
 	go fetchLatestVideos(QUERY)
 

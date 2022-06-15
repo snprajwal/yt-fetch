@@ -21,14 +21,14 @@ var (
 )
 
 const (
-	GET_VIDEOS_UNPAGED = "SELECT * FROM video ORDER BY published_at DESC LIMIT $1"
-	GET_VIDEOS_PAGED   = "SELECT * FROM video WHERE id < $1 ORDER BY published_at DESC LIMIT $2"
+	GET_VIDEOS_UNPAGED = "SELECT * FROM video ORDER BY (id, published_at) DESC LIMIT $1"
+	GET_VIDEOS_PAGED   = "SELECT * FROM video WHERE id < $1 ORDER BY (id, published_at) DESC LIMIT $2"
 
 	INSERT_VIDEO = `INSERT INTO video
 		(slug, title, channel, description, thumbnail, published_at)
 		VALUES ($1, $2, $3, $4, $5, $6)`
 	SEARCH_VIDEO = `SELECT * FROM video WHERE LOWER(title) LIKE '%' || $1 || '%'
-	OR LOWER(description) LIKE '%' || $2 || '%' ORDER BY published_at DESC LIMIT $3`
+	OR LOWER(description) LIKE '%' || $2 || '%' ORDER BY (id, published_at) DESC LIMIT $3`
 )
 
 func initDb() error {

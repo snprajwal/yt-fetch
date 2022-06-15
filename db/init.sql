@@ -12,4 +12,4 @@ CREATE TABLE video (
 	published_at TIMESTAMP
 );
 
-CREATE INDEX published_at_idx ON video (published_at DESC);
+CREATE INDEX video_id_published_at_idx ON video (id DESC, published_at DESC);

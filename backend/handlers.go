@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
+
+	"github.com/speps/go-hashids"
 )
 
 const PAGE_SIZE = 10
+
+var h *hashids.HashID
 
 type ytVideo struct {
 	id          int
@@ -24,6 +27,12 @@ type ytVideo struct {
 type videosRes struct {
 	Items      []*ytVideo `json:"items"`
 	NextPageId string     `json:"nextPageId,omitempty"`
+}
+
+func initHasher() error {
+	var err error
+	h, err = hashids.New()
+	return err
 }
 
 func pingHandler(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +52,12 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(videos) == PAGE_SIZE {
-		res.NextPageId = strconv.Itoa(videos[PAGE_SIZE-1].id - 1)
+		nextPageId, err := h.Encode([]int{videos[PAGE_SIZE-1].id - 1})
+		if err != nil {
+			http.Error(w, "[HASH] Failed to encode pageId", http.StatusInternalServerError)
+			return
+		}
+		res.NextPageId = nextPageId
 	}
 	res.Items = videos
 
@@ -64,7 +78,12 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(videos) == PAGE_SIZE {
-		res.NextPageId = strconv.Itoa(videos[PAGE_SIZE-1].id - 1)
+		nextPageId, err := h.Encode([]int{videos[PAGE_SIZE-1].id - 1})
+		if err != nil {
+			http.Error(w, "[HASH] Failed to encode pageId", http.StatusInternalServerError)
+			return
+		}
+		res.NextPageId = nextPageId
 	}
 	res.Items = videos
 
@@ -74,13 +93,16 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 func pagination(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pageId := r.URL.Query().Get("pageId")
-		log.Println("[ID] ", pageId)
 		// Use 0 as default value to indicate first page
 		pageKey := 0
 		if pageId != "" {
-			pageKey, _ = strconv.Atoi(pageId)
+			hash, err := h.DecodeWithError(pageId)
+			if err != nil {
+				http.Error(w, "[HASH] Failed to decode pageId", http.StatusBadRequest)
+				return
+			}
+			pageKey = hash[0]
 		}
-		log.Println("[KEY] ", pageKey)
 		ctx := context.WithValue(r.Context(), "pageKey", pageKey)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
