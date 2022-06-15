@@ -28,6 +28,7 @@
 ## GET `/search`
 - Query parameters:
     - `query`(*optional*): Search term to use. If empty, then generates same response as `/`.
+    - `pageId`(*optional*): ID to fetch next page, returned in the response of the previous request.
 - Response:
 
         {
