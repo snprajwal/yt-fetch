@@ -16,6 +16,7 @@ func main() {
 	if err := initDb(); err != nil {
 		log.Fatal("[DB ERROR] ", err)
 	}
+	go fetchLatestVideos(QUERY)
 
 	log.Println("Server running on port ", PORT)
 	log.Fatal(http.ListenAndServe(PORT, newRouter()))
