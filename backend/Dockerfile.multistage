@@ -1,0 +1,13 @@
+# Build
+FROM golang:alpine AS build
+
+WORKDIR /yt-fetch
+COPY . .
+RUN go mod download
+RUN go build
+
+# Deploy
+FROM alpine
+COPY --from=build /yt-fetch/yt-fetch .
+
+ENTRYPOINT ["./yt-fetch"]
