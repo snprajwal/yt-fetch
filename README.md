@@ -41,3 +41,10 @@
             ],
             "nextPageId":123
         }
+
+# Features
+- Keyset pagination for consistency and high performance through indexes
+- Hashing pagination key from `int` to `string` to prevent business intelligence leaks (see [here](https://medium.com/lightrail/prevent-business-intelligence-leaks-by-using-uuids-instead-of-database-ids-on-urls-and-in-apis-17f15669fd2e) for more info)
+- [gorilla/mux](https://github.com/gorilla/mux) as the default router due to ease of configuration and high scalability
+- Idiomatic functions which return `error`, with top-level error handling on the original calling function
+- Diagnostics and logging to `stderr` by default
