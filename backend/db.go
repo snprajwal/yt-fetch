@@ -21,14 +21,17 @@ var (
 )
 
 const (
-	GET_VIDEOS_UNPAGED = "SELECT * FROM video ORDER BY (id, published_at) DESC LIMIT $1"
-	GET_VIDEOS_PAGED   = "SELECT * FROM video WHERE id < $1 ORDER BY (id, published_at) DESC LIMIT $2"
-
 	INSERT_VIDEO = `INSERT INTO video
 		(slug, title, channel, description, thumbnail, published_at)
 		VALUES ($1, $2, $3, $4, $5, $6)`
-	SEARCH_VIDEO = `SELECT * FROM video WHERE LOWER(title) LIKE '%' || $1 || '%'
-	OR LOWER(description) LIKE '%' || $2 || '%' ORDER BY (id, published_at) DESC LIMIT $3`
+
+	GET_VIDEOS_UNPAGED = "SELECT * FROM video ORDER BY (id, published_at) DESC LIMIT $1"
+	GET_VIDEOS_PAGED   = "SELECT * FROM video WHERE id <= $1 ORDER BY (id, published_at) DESC LIMIT $2"
+
+	SEARCH_VIDEOS_UNPAGED = `SELECT * FROM video WHERE (LOWER(title) LIKE '%' || $1 || '%'
+	OR LOWER(description) LIKE '%' || $2 || '%') ORDER BY (id, published_at) DESC LIMIT $3`
+	SEARCH_VIDEOS_PAGED = `SELECT * FROM video WHERE (LOWER(title) LIKE '%' || $1 || '%'
+	OR LOWER(description) LIKE '%' || $2 || '%') AND id <= $3 ORDER BY (id, published_at) DESC LIMIT $4`
 )
 
 func initDb() error {
@@ -78,7 +81,8 @@ func getVideos(pageKey int) ([]*ytVideo, error) {
 	defer rows.Close()
 	for rows.Next() {
 		video := ytVideo{}
-		err = rows.Scan(&video.id, &video.Slug, &video.Title, &video.Channel, &video.Description, &video.Thumbnail, &video.PublishedAt)
+		err = rows.Scan(&video.id, &video.Slug, &video.Title, &video.Channel,
+			&video.Description, &video.Thumbnail, &video.PublishedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +93,13 @@ func getVideos(pageKey int) ([]*ytVideo, error) {
 }
 
 func searchVideos(query string, pageKey int) ([]*ytVideo, error) {
-	rows, err := ytFetchDb.Query(SEARCH_VIDEO, query, query, PAGE_SIZE)
+	var rows *sql.Rows
+	var err error
+	if pageKey == 0 {
+		rows, err = ytFetchDb.Query(SEARCH_VIDEOS_UNPAGED, query, query, PAGE_SIZE)
+	} else {
+		rows, err = ytFetchDb.Query(SEARCH_VIDEOS_PAGED, query, query, pageKey, PAGE_SIZE)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +108,8 @@ func searchVideos(query string, pageKey int) ([]*ytVideo, error) {
 	defer rows.Close()
 	for rows.Next() {
 		video := ytVideo{}
-		err = rows.Scan(&video.id, &video.Slug, &video.Title, &video.Channel, &video.Description, &video.Thumbnail, &video.PublishedAt)
+		err = rows.Scan(&video.id, &video.Slug, &video.Title, &video.Channel,
+			&video.Description, &video.Thumbnail, &video.PublishedAt)
 		if err != nil {
 			return nil, err
 		}
