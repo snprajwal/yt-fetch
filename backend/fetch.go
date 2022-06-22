@@ -32,16 +32,9 @@ func fetchLatestVideos(query string) {
 			Add(-30 * time.Second).
 			Format(time.RFC3339)
 
-		/* YouTube has an average upload frequency of
-		500 hours of video content per minute.
-		Assuming an average video length of 5 min,
-		this results in a maximum of 100 videos per minute,
-		or 50 videos per 30s. By using 100 as the limit for
-		maxResults in the query, we ensure that the response
-		is not paginated from YouTube's side. */
 		req := ytSvc.Search.
 			List([]string{"snippet"}).
-			MaxResults(100).
+			MaxResults(50).
 			Order("date").
 			PublishedAfter(publishedAfterTime).
 			Q(query).
@@ -55,13 +48,9 @@ func fetchLatestVideos(query string) {
 		}
 		log.Println("[YT API] Request successful")
 
-		// Insert into db in chronological order
-		for i := len(res.Items) - 1; i >= 0; i-- {
-			if err = insertVideo(res.Items[i]); err != nil {
-				log.Println("[DB ERROR] ", err)
-				continue
-			}
-			log.Println("[DB] Insert successful")
+		if err = bulkInsertVideos(res.Items); err != nil {
+			log.Println("[DB ERROR] ", err)
+			continue
 		}
 		time.Sleep(30 * time.Second)
 	}
@@ -74,7 +63,7 @@ func fetchSeed(query string) {
 
 	req := ytSvc.Search.
 		List([]string{"snippet"}).
-		MaxResults(100).
+		MaxResults(50).
 		Order("date").
 		PublishedAfter(publishedAfterTime).
 		Q(query).
@@ -87,12 +76,9 @@ func fetchSeed(query string) {
 	}
 	log.Println("[YT API] Request successful")
 
-	// Insert into db in chronological order
-	for i := len(res.Items) - 1; i >= 0; i-- {
-		if err = insertVideo(res.Items[i]); err != nil {
-			log.Println("[DB ERROR] ", err)
-			continue
-		}
-		log.Println("[DB] Insert successful")
+	if err = bulkInsertVideos(res.Items); err != nil {
+		log.Println("[DB ERROR] ", err)
+		return
 	}
+	log.Println("[DB] Insert successful")
 }

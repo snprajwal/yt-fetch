@@ -13,3 +13,4 @@ CREATE TABLE video (
 );
 
 CREATE INDEX video_id_published_at_idx ON video (id DESC, published_at DESC);
+CREATE INDEX video_title_description_idx ON video (title, description);

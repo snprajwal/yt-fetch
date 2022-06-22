@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"google.golang.org/api/youtube/v3"
 )
@@ -21,10 +22,6 @@ var (
 )
 
 const (
-	INSERT_VIDEO = `INSERT INTO video
-		(slug, title, channel, description, thumbnail, published_at)
-		VALUES ($1, $2, $3, $4, $5, $6)`
-
 	GET_VIDEOS_UNPAGED = "SELECT * FROM video ORDER BY (id, published_at) DESC LIMIT $1"
 	GET_VIDEOS_PAGED   = "SELECT * FROM video WHERE id <= $1 ORDER BY (id, published_at) DESC LIMIT $2"
 
@@ -44,22 +41,43 @@ func initDb() error {
 	return err
 }
 
-func insertVideo(res *youtube.SearchResult) error {
-	publishedAt, err := time.Parse(time.RFC3339, res.Snippet.PublishedAt)
+func bulkInsertVideos(res []*youtube.SearchResult) error {
+	txn, err := ytFetchDb.Begin()
+	if err != nil {
+		return err
+	}
+	stmt, err := txn.Prepare(pq.CopyIn(
+		"video", "slug", "title", "channel", "description", "thumbnail", "published_at",
+	))
 	if err != nil {
 		return err
 	}
 
-	_, err = ytFetchDb.Exec(
-		INSERT_VIDEO,
-		res.Id.VideoId,
-		res.Snippet.Title,
-		res.Snippet.ChannelTitle,
-		res.Snippet.Description,
-		res.Snippet.Thumbnails.Default.Url,
-		publishedAt,
-	)
-	if err != nil {
+	for _, r := range res {
+		publishedAt, err := time.Parse(time.RFC3339, r.Snippet.PublishedAt)
+		if err != nil {
+			return err
+		}
+
+		_, err = stmt.Exec(
+			r.Id.VideoId,
+			r.Snippet.Title,
+			r.Snippet.ChannelTitle,
+			r.Snippet.Description,
+			r.Snippet.Thumbnails.Default.Url,
+			publishedAt,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	if _, err = stmt.Exec(); err != nil {
+		return err
+	}
+	if err = stmt.Close(); err != nil {
+		return err
+	}
+	if err = txn.Commit(); err != nil {
 		return err
 	}
 	return nil
